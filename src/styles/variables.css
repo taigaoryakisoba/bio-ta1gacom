@@ -1,0 +1,31 @@
+/* src/styles/variables.css */
+:root {
+    --font-main: 'M PLUS 1 Code', sans-serif;
+    --font-mono: 'JetBrains Mono', 'M PLUS 1 Code Variable', monospace;    /* Mocha Base */
+    --base: #1e1e2e;
+    --mantle: #181825;
+    --crust: #11111b;
+    /* Text */
+    --text: #cdd6f4;
+    --subtext: #a6adc8;
+    /* Sapphire (Accent) */
+    --sapphire: #74c7ec;
+    --blue: #89b4fa;
+    /* Surface */
+    --surface0: #313244;
+
+}
+
+
+body {
+    background-color: var(--base);
+    color: var(--text);
+    font-family: var(--font_main);
+}
+
+code,
+pre,
+.mono {
+    font-family: var(--font_mono);
+    font-variant-ligatures: normal;
+}

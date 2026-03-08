@@ -9,6 +9,12 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.17.1"
+    "@fontsource-variable/m-plus-1-code": "^5.2.9",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/m-plus-1-code": "^5.2.8",
+    "@iconify-json/simple-icons": "^1.2.72",
+    "@iconify-json/tabler": "^1.2.30",
+    "astro": "^5.17.1",
+    "astro-icon": "^1.1.5"
   }
 }

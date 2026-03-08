@@ -1,0 +1,218 @@
+---
+/* src/components/DiscordStatus.astro */
+import { Icon } from 'astro-icon/components';
+---
+
+<div class="discord-card">
+  <div class="discord-header">
+    <Icon name="simple-icons:discord" class="discord-logo" />
+    <span class="mono header-text">Discord</span>
+  </div>
+  
+  <div class="discord-body">
+    <div class="status-row">
+      <div class="dot-wrapper">
+        <div id="status-dot" class="dot"></div>
+        <div id="status-ping" class="ping"></div>
+      </div>
+      <span id="status-text" class="mono status-label">FETCHING...</span>
+    </div>
+    
+    <div id="activity-text" class="activity-label mono"></div>
+
+    <div id="rich-presence" class="rich-presence" style="display: none;">
+      <div class="rp-image-container">
+        <img id="rp-large-image" class="rp-large-image" src="" alt="Activity" style="display: none;" />
+        <img id="rp-small-image" class="rp-small-image" src="" alt="" style="display: none;" />
+      </div>
+      <div class="rp-info">
+        <div id="rp-name" class="rp-name mono"></div>
+        <div id="rp-details" class="rp-text mono"></div>
+        <div id="rp-state" class="rp-text mono"></div>
+        <div id="rp-time" class="rp-text mono"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  const DISCORD_ID = '1365766603152560240';
+  let timeInterval;
+
+  function getAssetUrl(appId, assetId) {
+    if (!assetId) return null;
+    if (assetId.startsWith('spotify:')) return `https://i.scdn.co/image/${assetId.split(':')[1]}`;
+    if (assetId.startsWith('mp:external/')) return `https://media.discordapp.net/external/${assetId.replace('mp:external/', '')}`;
+    return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
+  }
+
+  function formatTime(start, end) {
+    const now = Date.now();
+    let diff = 0;
+    let isLeft = false;
+    if (end) { diff = Math.max(0, Math.floor((end - now) / 1000)); isLeft = true; }
+    else if (start) { diff = Math.max(0, Math.floor((now - start) / 1000)); }
+    else return '';
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    const timeStr = h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+    return isLeft ? `${timeStr} left` : `${timeStr} elapsed`;
+  }
+
+  async function updateStatus() {
+    try {
+      const res = await fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`);
+      const json = await res.json();
+      const data = json.data;
+
+      const dot = document.getElementById('status-dot');
+      const ping = document.getElementById('status-ping'); // これがnullだとエラーになるため復活
+      const text = document.getElementById('status-text');
+      const simpleText = document.getElementById('activity-text');
+      const richPresence = document.getElementById('rich-presence');
+      
+      const rpName = document.getElementById('rp-name');
+      const rpDetails = document.getElementById('rp-details');
+      const rpState = document.getElementById('rp-state');
+      const rpTime = document.getElementById('rp-time');
+      const rpLargeImg = document.getElementById('rp-large-image');
+      const rpSmallImg = document.getElementById('rp-small-image');
+
+      const statusColors = { online: '#74c7ec', idle: '#f9e2af', dnd: '#f38ba8', offline: '#6c7086' };
+      
+      // 1. オンライン状態の更新（pingの存在チェックを復活）
+      if (dot && text && ping) {
+        const status = data.discord_status || 'offline';
+        const color = statusColors[status];
+        dot.style.backgroundColor = color;
+        ping.style.backgroundColor = color; // リングの色も更新
+        text.innerText = status.toUpperCase();
+        // オフラインの時はリングを隠す
+        ping.style.opacity = status !== 'offline' ? '0.3' : '0';
+      }
+
+      if (timeInterval) clearInterval(timeInterval);
+
+      if (data.activities && data.activities.length > 0) {
+        const act = data.activities.find(a => a.type !== 4) || data.activities[0];
+        if (act.type === 4 && !act.assets) {
+          richPresence.style.display = 'none';
+          simpleText.style.display = 'block';
+          simpleText.innerText = act.state || 'No activity';
+        } else {
+          simpleText.style.display = 'none';
+          richPresence.style.display = 'flex';
+          rpName.innerText = act.name;
+          rpDetails.innerText = act.details || '';
+          rpState.innerText = act.state || '';
+          if (act.assets && act.assets.large_image) {
+            rpLargeImg.src = getAssetUrl(act.application_id, act.assets.large_image);
+            rpLargeImg.style.display = 'block';
+          } else { rpLargeImg.style.display = 'none'; }
+          if (act.assets && act.assets.small_image) {
+            rpSmallImg.src = getAssetUrl(act.application_id, act.assets.small_image);
+            rpSmallImg.style.display = 'block';
+          } else { rpSmallImg.style.display = 'none'; }
+          if (act.timestamps) {
+            const updateTime = () => { rpTime.innerText = formatTime(act.timestamps.start, act.timestamps.end); };
+            updateTime();
+            timeInterval = setInterval(updateTime, 1000);
+          } else { rpTime.innerText = ''; }
+        }
+      } else {
+        richPresence.style.display = 'none';
+        simpleText.style.display = 'block';
+        simpleText.innerText = 'No activity';
+      }
+    } catch (e) {
+      console.error('Lanyard ERR:', e);
+    }
+  }
+
+  updateStatus();
+  setInterval(updateStatus, 30000);
+</script>
+
+<style>
+  .mono { font-family: var(--font-mono); }
+
+  .discord-card {
+    background: var(--mantle);
+    border: 1px solid var(--surface0);
+    border-radius: 12px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .discord-card:hover {
+    border-color: var(--sapphire);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .discord-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--surface0);
+    padding-bottom: 0.8rem;
+  }
+
+  .discord-logo { width: 24px; height: 24px; color: var(--text); }
+  .header-text { font-size: 0.85rem; color: var(--subtext); letter-spacing: 0.05em; }
+
+  .discord-body { display: flex; flex-direction: column; gap: 0.5rem; }
+  .status-row { display: flex; align-items: center; gap: 0.75rem; }
+
+  /* ドット周りのレイアウト設定 */
+  .dot-wrapper {
+    position: relative; /* 二重円を重ねるために必要 */
+    width: 12px;
+    height: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    z-index: 2;
+  }
+
+  /* 静止した「リング」のデザイン */
+
+
+  .status-label { font-size: 1.1rem; font-weight: bold; color: var(--text); letter-spacing: 0.05em; }
+  .activity-label { font-size: 0.85rem; color: var(--subtext); }
+
+  .rich-presence {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed var(--surface0);
+  }
+
+  .rp-image-container { position: relative; flex-shrink: 0; width: 64px; height: 64px; }
+  .rp-large-image { width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+  .rp-small-image {
+    position: absolute;
+    bottom: -6px;
+    right: -6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--mantle);
+    background: var(--base);
+  }
+
+  .rp-info { display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+  .rp-name { font-size: 0.95rem; font-weight: bold; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rp-text { font-size: 0.75rem; color: var(--subtext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem; }
+</style>
